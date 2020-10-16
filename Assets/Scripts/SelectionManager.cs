@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 public class SelectionManager : MonoBehaviour
 {
     [SerializeField] private string selectableTag = "Selectable";
-    public Image img;
+    public UnityEngine.UI.Image img;
 
     void Start()
     {
@@ -24,10 +25,17 @@ public class SelectionManager : MonoBehaviour
             var selection = hit.transform;
             if (selection.CompareTag(selectableTag))
                 img.color = new Color(0f, 1f, 0f);
+            else
+            {
+                if (Input.GetKey(KeyCode.Mouse0))
+                {
+                    img.color = new Color(1f, 0f, 0f);
+                }
+                else
+                    img.color = new Color(1f, 1f, 1f);
+            }
         }
         else
-        {
             img.color = new Color(1f, 1f, 1f);
-        }
     }
 }
