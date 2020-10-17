@@ -5,19 +5,24 @@ public class GrapplingGun : MonoBehaviour
 {
 
     private LineRenderer lr;
-    private Vector3 grapplePoint;
-    public LayerMask whatIsGrappleable;
-    public LayerMask whatBlocksGrapple;
-    public Transform gunTip, camera, player;
+    private Vector3 grapplePoint, firstPlayerPosition;
+    private RaycastHit hitCan1, hitCan2, hitStillCan1, hitStillCan2;
+    private float firstPointAngle, actualAngle;
+
+
     private float maxDistance = 100f;
     private SpringJoint joint;
     private int NumberPush;
+
+    public LayerMask whatIsGrappleable;
+    public LayerMask whatBlocksGrapple;
+    public Transform gunTip, camera, player;
     public int MaxPush;
     public float pullForce;
     public GameObject bullet;
     public float speed = 100f;
-    private RaycastHit hit1;
-    private RaycastHit hit2;
+    public float maxAngle;
+    
 
     void Awake()
     {
@@ -26,29 +31,16 @@ public class GrapplingGun : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && !IsGrappling())
         {
-            if (canGrapple())
-            {
-                StartGrapple();
-            }
+            if (canGrapple())           
+                StartGrapple();                    
         }
+        else if (Input.GetKeyDown(KeyCode.Mouse1))CloseJoints();
 
-        //condition to stop grappling if an object gets between
-        //the grapple point and the player (not finished)
-
-        //else if (Input.GetMouseButtonUp(0) || !stillCanGrapple()) 
-        else if (Input.GetMouseButtonUp(0))
-        {
-            StopGrapple();
-
-        }
-        else if (Input.GetKeyDown(KeyCode.Mouse1))
-        {
-            CloseJoints();
-
-        }
-
+        if (!stillCanGrapple()) StopGrapple();
+        else if (!validAngle()) StopGrapple();
+        else if ((Input.GetMouseButtonUp(0))) StopGrapple();
     }
 
         //Called after Update
@@ -70,7 +62,8 @@ public class GrapplingGun : MonoBehaviour
 
             FindObjectOfType<AudioManager>().Play("GrapplingShot");
 
-            grapplePoint = hit1.point;
+            grapplePoint = hitCan1.point;
+            firstPlayerPosition = player.position;
             joint = player.gameObject.AddComponent<SpringJoint>();
             joint.autoConfigureConnectedAnchor = false;
             joint.connectedAnchor = grapplePoint;
@@ -98,9 +91,7 @@ public class GrapplingGun : MonoBehaviour
         void CloseJoints()
         {
             if (NumberPush > MaxPush - 1)
-            {
                 return;
-            }
             if (joint)
             {
                 NumberPush++;
@@ -142,7 +133,6 @@ public class GrapplingGun : MonoBehaviour
         if (!joint) return;
 
         currentGrapplePosition = Vector3.Lerp(currentGrapplePosition, grapplePoint, Time.deltaTime * 8f);
-
         lr.SetPosition(0, gunTip.position);
         lr.SetPosition(1, currentGrapplePosition);
     }
@@ -159,11 +149,11 @@ public class GrapplingGun : MonoBehaviour
 
     public bool canGrapple()
     {
-        if (Physics.Raycast(camera.position, camera.forward, out hit1, maxDistance, whatIsGrappleable))
+        if (Physics.Raycast(camera.position, camera.forward, out hitCan1, maxDistance, whatIsGrappleable))
         {
-            if (Physics.Raycast(camera.position, camera.forward, out hit2, maxDistance, whatBlocksGrapple))
+            if (Physics.Raycast(camera.position, camera.forward, out hitCan2, maxDistance, whatBlocksGrapple))
             {
-                if (hit1.distance < hit2.distance)
+                if (hitCan1.distance < hitCan2.distance)
                     return true;
                 else
                     return false;
@@ -177,17 +167,36 @@ public class GrapplingGun : MonoBehaviour
     }
     public bool stillCanGrapple()
     {
-        Vector3 fromGun = gunTip.transform.position;
+        Vector3 fromGun = gunTip.position;
         Vector3 direction = fromGun - grapplePoint;
 
-        if (Physics.Raycast(gunTip.position, direction, out hit1, maxDistance, whatIsGrappleable))
+        if (Physics.Raycast(gunTip.position, -direction, out hitStillCan1, maxDistance, whatIsGrappleable))
         {
-            if (Physics.Raycast(gunTip.position, direction, out hit2, maxDistance, whatBlocksGrapple))
+            if (Physics.Raycast(gunTip.position, -direction, out hitStillCan2, maxDistance, whatBlocksGrapple))
             {
-                if (hit1.distance < hit2.distance)
+                if (hitStillCan1.distance < hitStillCan2.distance)
+                {
                     return true;
+                }
                 else
+                {
                     return false;
+                }
+            }           
+            return true;           
+        }
+        return false;
+    }
+
+    //check max angle condition
+    public bool validAngle()
+    {
+        if (joint)
+        {
+            firstPointAngle = Mathf.Atan2(firstPlayerPosition.y - grapplePoint.y, firstPlayerPosition.x - grapplePoint.x) * 180 / Mathf.PI;
+            actualAngle = Mathf.Atan2(player.position.y - grapplePoint.y, player.position.x - grapplePoint.x) * 180 / Mathf.PI;
+            if (maxAngle <= (Mathf.Abs(firstPointAngle - actualAngle))){
+                return false;
             }
             else
             {
